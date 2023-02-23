@@ -1,6 +1,6 @@
 """Alpenhorn2-style CHIME Info base classes."""
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import calendar
 import datetime
@@ -163,7 +163,7 @@ class CHIMEFileInfo(file_info_base):
     """
 
     @classmethod
-    def _parse_filename(cls, name: str) -> Any:
+    def _parse_filename(cls, name: str) -> dict | None:
         """Parse the filename `name`.
 
         Called from is_type() to check whether this is an

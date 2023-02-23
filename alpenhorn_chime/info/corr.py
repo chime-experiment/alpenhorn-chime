@@ -1,4 +1,5 @@
 """CHIME correlator info tables."""
+from typing import BinaryIO
 
 import re
 import h5py
@@ -29,7 +30,7 @@ class CorrAcqInfo(CHIMEAcqInfo):
     nfreq = pw.IntegerField(null=True)
     nprod = pw.IntegerField(null=True)
 
-    def _info_from_file(self, file):
+    def _info_from_file(self, file: BinaryIO) -> dict:
         """Return corr acq info from a file in the acq.
 
         Copied from `auto_import.get_acqcorrinfo_keywords_from_h5`
@@ -108,7 +109,7 @@ class CorrFileInfo(CHIMEFileInfo):
 
         return {"chunk_number": int(match.group(1)), "freq_number": int(match.group(2))}
 
-    def _info_from_file(self, file):
+    def _info_from_file(self, file: BinaryIO) -> dict:
         """Get corr file info.
 
         Parameters

@@ -1,9 +1,17 @@
 """CHIME rawadc info tables."""
+from __future__ import annotations
+from typing import TYPE_CHECKING, BinaryIO
+
 import re
 import h5py
 import peewee as pw
 
 from .base import CHIMEAcqInfo, CHIMEFileInfo
+
+if TYPE_CHECKING:
+    import pathlib
+    from alpenhorn.acquisition import ArchiveAcq
+    from alpenhorn.storage import StorageNode
 
 
 class RawadcAcqInfo(CHIMEAcqInfo):
@@ -21,7 +29,9 @@ class RawadcAcqInfo(CHIMEAcqInfo):
 
     start_time = pw.DoubleField(null=True)
 
-    def _set_info(self, node, path, item):
+    def _set_info(
+        self, node: StorageNode, path: pathlib.Path, item: ArchiveAcq
+    ) -> dict:
         """Generate acq info.
 
         Parameters
@@ -75,7 +85,7 @@ class RawadcFileInfo(CHIMEFileInfo):
         if not match:
             raise ValueError(f"bad rawadc file name: {name}")
 
-    def _info_from_file(self, file):
+    def _info_from_file(self, file: BinaryIO) -> dict:
         """Get rawadc file info.
 
         Parameters

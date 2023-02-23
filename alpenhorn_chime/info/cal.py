@@ -2,12 +2,17 @@
 
 i.e gain, digitalgain, flaginput
 """
+from __future__ import annotations
+from typing import TYPE_CHECKING, BinaryIO
 
 import re
 import h5py
 import peewee as pw
 
 from .base import CHIMEAcqDetect, CHIMEFileInfo
+
+if TYPE_CHECKING:
+    from alpenhorn.acquisition import AcqType
 
 
 # No-table acq info
@@ -35,6 +40,7 @@ class CalibrationFileInfo(CHIMEFileInfo):
     finish_time : float
         End of data in the file in UNIX time.
     """
+
     start_time = pw.DoubleField(null=True)
     finish_time = pw.DoubleField(null=True)
 
@@ -55,7 +61,7 @@ class CalibrationFileInfo(CHIMEFileInfo):
         if not re.match(r"[0-9]{8}\.h5", name):
             raise ValueError(f"bad cal data file: {name}")
 
-    def _info_from_file(self, file):
+    def _info_from_file(self, file: BinaryIO) -> dict:
         """Get cal file info.
 
         Parameters
@@ -87,7 +93,7 @@ class FlagInputFileInfo(CalibrationFileInfo):
 
 
 # This is the indirect file class function for "calibration" files
-def cal_info_class(acqtype):
+def cal_info_class(acqtype: AcqType) -> type[CalibrationFileInfo]:
     """Return calibration file info class for `acqtype`."""
 
     if acqtype.name == "digitalgain":

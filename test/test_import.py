@@ -8,6 +8,7 @@ import tempfile
 import subprocess
 from time import sleep
 from signal import SIGINT
+from unittest.mock import patch
 
 from alpenhorn.acquisition import ArchiveFile, AcqType, FileType
 from alpenhorn.archive import ArchiveFileCopy
@@ -29,7 +30,6 @@ from alpenhorn_chime.info.cal import (
     CalibrationGainFileInfo,
     FlagInputFileInfo,
 )
-
 
 
 @pytest.fixture
@@ -80,13 +80,15 @@ def test_data(proxy, tables, testdata):
 def set_env(testdata, tempdb):
     """Set up the environment for the test."""
 
-    # Alpenhorn config file location
-    os.environ["ALPENHORN_CONFIG_FILE"] = str(pathlib.Path(testdata, "alpenhorn.yaml"))
-
-    # We set both of these, because while the test itself runs in test-safe mode,
+    # We set both CHIMEDB vars, because while the test itself runs in test-safe mode,
     # alpenhorn itself won't be doing that.
-    os.environ["CHIMEDB_SQLITE"] = tempdb
-    os.environ["CHIMEDB_TEST_SQLITE"] = tempdb
+    with patch.dict(
+        "os.environ",
+        ALPENHORN_CONFIG_FILE=str(pathlib.Path(testdata, "alpenhorn.yaml")),
+        CHIMEDB_SQLITE=tempdb,
+        CHIMEDB_TEST_SQLITE=tempdb,
+    ):
+        yield
 
 
 def test_import(tempdb, set_env, tables, chime_data, test_data, ExtendedArchiveAcq):
@@ -123,11 +125,17 @@ def test_import(tempdb, set_env, tables, chime_data, test_data, ExtendedArchiveA
 
     acq_data = {
         "20201101T000000Z_chime_gain": (chime_inst, AcqType.get(name="gain")),
-        "20210321T121000Z_chime_digitalgain": (chime_inst, AcqType.get(name="digitalgain")),
+        "20210321T121000Z_chime_digitalgain": (
+            chime_inst,
+            AcqType.get(name="digitalgain"),
+        ),
         "20230213T201433Z_chime_rawadc": (chime_inst, AcqType.get(name="rawadc")),
         "20220101T000000Z_chime_flaginput": (chime_inst, AcqType.get(name="flaginput")),
         "20221101T000000Z_chime_weather": (chime_inst, AcqType.get(name="weather")),
-        "20220129T233553Z_chimetiming_corr": (chimetiming_inst, AcqType.get(name="corr")),
+        "20220129T233553Z_chimetiming_corr": (
+            chimetiming_inst,
+            AcqType.get(name="corr"),
+        ),
     }
     for acq in ExtendedArchiveAcq.select():
         assert acq.inst == acq_data[acq.name][0]
@@ -137,13 +145,25 @@ def test_import(tempdb, set_env, tables, chime_data, test_data, ExtendedArchiveA
         ids[acq.name] = acq.id
 
     file_data = {
-            "000003.h5": ("20230213T201433Z_chime_rawadc", FileType.get(name="rawadc")),
-            "00947042.h5": ("20220101T000000Z_chime_flaginput", FileType.get(name="calibration")),
-            "20221106.h5": ("20221101T000000Z_chime_weather", FileType.get(name="weather")),
-            "00358972.h5": ("20201101T000000Z_chime_gain", FileType.get(name="calibration")),
-            "00001101.h5": ("20210321T121000Z_chime_digitalgain", FileType.get(name="calibration")),
-            "00000000_0000.h5": ("20220129T233553Z_chimetiming_corr", FileType.get(name="corr")),
-            }
+        "000003.h5": ("20230213T201433Z_chime_rawadc", FileType.get(name="rawadc")),
+        "00947042.h5": (
+            "20220101T000000Z_chime_flaginput",
+            FileType.get(name="calibration"),
+        ),
+        "20221106.h5": ("20221101T000000Z_chime_weather", FileType.get(name="weather")),
+        "00358972.h5": (
+            "20201101T000000Z_chime_gain",
+            FileType.get(name="calibration"),
+        ),
+        "00001101.h5": (
+            "20210321T121000Z_chime_digitalgain",
+            FileType.get(name="calibration"),
+        ),
+        "00000000_0000.h5": (
+            "20220129T233553Z_chimetiming_corr",
+            FileType.get(name="corr"),
+        ),
+    }
 
     for file in ArchiveFile.select():
         assert file.acq_id == ids[file_data[file.name][0]]
@@ -182,8 +202,8 @@ def test_import(tempdb, set_env, tables, chime_data, test_data, ExtendedArchiveA
     for info in WeatherFileInfo.select():
         assert info.file.id == ids["20221106.h5"]
         assert info.date == "2022-11-01 00:00:00"
-        assert info.start_time == 1667260800.
-        assert info.finish_time == 1667347199.
+        assert info.start_time == 1667260800.0
+        assert info.finish_time == 1667347199.0
 
     CorrFileInfo.set_config(FileType.get(name="corr"))
     assert CorrFileInfo.select().count() == 1

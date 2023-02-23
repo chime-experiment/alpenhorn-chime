@@ -1,4 +1,6 @@
 """Weather data info classes."""
+from __future__ import annotations
+from typing import TYPE_CHECKING, BinaryIO
 
 import re
 import calendar
@@ -6,6 +8,11 @@ import datetime
 import peewee as pw
 
 from .base import CHIMEAcqDetect, CHIMEFileInfo
+
+if TYPE_CHECKING:
+    import pathlib
+    from alpenhorn.acquisition import ArchiveAcq
+    from alpenhorn.storage import StorageNode
 
 
 # No-model acq class
@@ -49,7 +56,9 @@ class WeatherFileInfo(CHIMEFileInfo):
         if not re.match(r"(20[1-9][0-9][01][0-9][0-3][0-9])\.h5", name):
             raise ValueError(f"bad weather file name: {name}")
 
-    def _set_info(self, path, node, item):
+    def _set_info(
+        self, node: StorageNode, path: pathlib.Path, item: ArchiveAcq
+    ) -> dict:
         """Generate weather file info."""
 
         date = datetime.datetime.strptime(str(path)[0:8], "%Y%m%d")

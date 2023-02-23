@@ -1,4 +1,5 @@
 """CHIME HFB info tables."""
+from typing import BinaryIO
 
 import re
 import h5py
@@ -33,7 +34,7 @@ class HFBAcqInfo(CHIMEAcqInfo):
     nsubfreq = pw.IntegerField(null=True)
     nbeam = pw.IntegerField(null=True)
 
-    def _info_from_file(self, file):
+    def _info_from_file(self, file: BinaryIO) -> dict:
         """Return HFB corr acq info from a file in the acq.
 
         Copied from `auto_import.get_acqhfbinfo_keywords_from_h5`
@@ -119,7 +120,7 @@ class HFBFileInfo(CHIMEFileInfo):
 
         return {"chunk_number": int(match.group(1)), "freq_number": int(match.group(2))}
 
-    def _info_from_file(file):
+    def _info_from_file(self, file: BinaryIO) -> dict:
         """Get HFB file info.
 
         Parameters
