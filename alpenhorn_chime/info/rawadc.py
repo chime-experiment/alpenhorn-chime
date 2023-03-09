@@ -93,10 +93,9 @@ class RawadcFileInfo(CHIMEFileInfo):
         file : open, read-only file
             the file being imported.
         """
-        f = h5py.File(file, "r")
-        times = f["timestamp"]["ctime"]
-        start_time = times.min()
-        finish_time = times.max()
-        f.close()
+        with h5py.File(file, "r") as f:
+            times = f["timestamp"]["ctime"]
+            start_time = times.min()
+            finish_time = times.max()
 
         return {"start_time": start_time, "finish_time": finish_time}

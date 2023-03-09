@@ -142,10 +142,9 @@ class CHIMEAcqInfo(CHIMEAcqDetect, acq_info_base):
         """
         if hasattr(self, "_info_from_file"):
             # Open the file
-            file = node.io.open(path)
-
-            # Get keywords from file
-            return self._info_from_file(file)
+            with node.io.open(path) as file:
+                # Get keywords from file
+                return self._info_from_file(file)
         else:
             return dict()
 
@@ -229,10 +228,9 @@ class CHIMEFileInfo(file_info_base):
         """
         if hasattr(self, "_info_from_file"):
             # Open the file
-            file = node.io.open(path)
-
-            # Get keywords from file
-            info = self._info_from_file(file)
+            with node.io.open(path) as file:
+                # Get keywords from file
+                info = self._info_from_file(file)
         else:
             info = dict()
 

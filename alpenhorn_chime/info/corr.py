@@ -42,16 +42,15 @@ class CorrAcqInfo(CHIMEAcqInfo):
         """
 
         # Find the integration time from the median difference between timestamps.
-        f = h5py.File(file, "r")
-        dt = np.array([])
-        t = f["/index_map/time"]
-        for i in range(1, len(t)):
-            dt = np.append(dt, float(t[i][1]) - float(t[i - 1][1]))
-        integration = np.median(dt)
-        n_freq = len(f["/index_map/freq"])
-        n_prod = len(f["/index_map/prod"])
+        with h5py.File(file, "r") as f:
+            dt = np.array([])
+            t = f["/index_map/time"]
+            for i in range(1, len(t)):
+                dt = np.append(dt, float(t[i][1]) - float(t[i - 1][1]))
+            integration = np.median(dt)
+            n_freq = len(f["/index_map/freq"])
+            n_prod = len(f["/index_map/prod"])
 
-        f.close()
         return {"integration": integration, "nfreq": n_freq, "nprod": n_prod}
 
 
@@ -117,10 +116,9 @@ class CorrFileInfo(CHIMEFileInfo):
         file : open, read-only file
             the file being imported.
         """
-        f = h5py.File(file, "r")
-        start_time = f["/index_map/time"][0][1]
-        finish_time = f["/index_map/time"][-1][1]
-        f.close()
+        with h5py.File(file, "r") as f:
+            start_time = f["/index_map/time"][0][1]
+            finish_time = f["/index_map/time"][-1][1]
 
         return {
             "start_time": start_time,

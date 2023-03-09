@@ -69,10 +69,9 @@ class CalibrationFileInfo(CHIMEFileInfo):
         file : open, read-only file
             the file being imported.
         """
-        f = h5py.File(file, "r")
-        start_time = f["index_map/update_time"][0]
-        finish_time = f["index_map/update_time"][-1]
-        f.close()
+        with h5py.File(file, "r") as f:
+            start_time = f["index_map/update_time"][0]
+            finish_time = f["index_map/update_time"][-1]
 
         return {
             "start_time": start_time,
