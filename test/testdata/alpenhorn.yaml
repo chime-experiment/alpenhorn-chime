@@ -1,0 +1,11 @@
+#Alpenhorn config file
+
+base:
+  hostname: alpenhost
+
+extensions:
+  - chimedb.core.alpenhorn
+  - alpenhorn_chime
+
+logging:
+  level: DEBUG
