@@ -2,16 +2,15 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, BinaryIO
 
-import re
 import h5py
+import calendar
 import peewee as pw
 
 from .base import CHIMEAcqInfo, CHIMEFileInfo
 
 if TYPE_CHECKING:
     import pathlib
-    from alpenhorn.acquisition import ArchiveAcq
-    from alpenhorn.storage import StorageNode
+    from alpenhorn.update import UpdateableNode
 
 
 class RawadcAcqInfo(CHIMEAcqInfo):
@@ -30,7 +29,10 @@ class RawadcAcqInfo(CHIMEAcqInfo):
     start_time = pw.DoubleField(null=True)
 
     def _set_info(
-        self, node: StorageNode, path: pathlib.Path, item: ArchiveAcq
+        self,
+        path: pathlib.Path,
+        node: UpdateableNode,
+        name_data: dict,
     ) -> dict:
         """Generate acq info.
 
@@ -41,12 +43,12 @@ class RawadcAcqInfo(CHIMEAcqInfo):
         path : pathlib.Path
             the path relative to `node.root` of the file
             being imported in this acquistion
-        item : alpenhorn.archive.ArchiveAcq
-            the newly-created acq record
+        name_data : dict
+            the value associated with key "acqtime" is used for "start_time"
         """
 
-        info = super()._set_info(node, path, item)
-        info["start_time"] = self.timestamp_from_name(item.name)
+        info = super()._set_info(path=path, node=node, name_data=name_data)
+        info["start_time"] = calendar.timegm(name_data["acqtime"].utctimetuple())
         return info
 
 
@@ -65,25 +67,6 @@ class RawadcFileInfo(CHIMEFileInfo):
 
     start_time = pw.DoubleField(null=True)
     finish_time = pw.DoubleField(null=True)
-
-    @classmethod
-    def _parse_filename(cls, name: str) -> None:
-        """Is this a valid RAW adc filename?
-
-        Parameters
-        ----------
-        name : str
-            Rawadc filename.
-
-        Raises
-        ------
-        ValueError
-            `name` didn't have the right form
-        """
-
-        match = re.match(r"[0-9]{6}\.h5", name)
-        if not match:
-            raise ValueError(f"bad rawadc file name: {name}")
 
     def _info_from_file(self, file: BinaryIO) -> dict:
         """Get rawadc file info.

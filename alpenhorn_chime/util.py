@@ -2,9 +2,9 @@
 
 import chimedb.core as db
 from alpenhorn.db import database_proxy as alpenhorn_proxy
-from alpenhorn.acquisition import AcqType, FileType, AcqFileTypes
 
 from .inst import ArchiveInst
+from .types import AcqType, FileType, AcqFileTypes
 
 
 @db.atomic(read_write=True)
@@ -15,8 +15,9 @@ def update_types() -> None:
     tables to ensure type data is up-to-date.
 
     Some types which are no longer in production are added because there
-    are references to them in the database, but they are created with no
-    info_class, meaning Alpenhorn will never match them during an import.
+    are references to them in the database.  FileTypes which are unused
+    have no `pattern` specified, meaning Alpenhorn will never match them
+    during an import.
 
     Does not remove unknown types.
     """
@@ -24,28 +25,21 @@ def update_types() -> None:
     # Initialise the proxy of the alpenhorn tables
     alpenhorn_proxy.initialize(db.proxy.obj)
 
-    def typedict(id_, name, notes, info_class, priority):
-        if info_class is None:
-            pass
-        elif info_class[0] == "=":
-            info_class = "=alpenhorn_chime.info." + info_class[1:]
-        else:
-            info_class = "alpenhorn_chime.info." + info_class
-
+    def typedict(id_, name, notes, info_class):
         return {
             "id": id_,
             "name": name,
-            "priority": priority,
             "info_class": info_class,
             "notes": notes,
-            "info_config": None,  # Unused by CHIME
         }
 
-    def at(id_, name, notes, info_class, priority=0):
-        return typedict(id_, name, notes, info_class, priority)
+    def at(id_, name, notes, info_class):
+        return typedict(id_, name, notes, info_class)
 
-    def ft(id_, name, notes, info_class, priority=0):
-        return typedict(id_, name, notes, info_class, priority)
+    def ft(id_, name, notes, info_class, pattern):
+        td = typedict(id_, name, notes, info_class)
+        td["pattern"] = pattern
+        return td
 
     # List of known acqtypes
     acqtypes = [
@@ -66,7 +60,7 @@ def update_types() -> None:
             5,
             "weather",
             "Weather data scraped from the wview archive provided by DRAO.",
-            "WeatherAcqDetect",
+            None,
         ),
         at(
             6,
@@ -78,19 +72,19 @@ def update_types() -> None:
             7,
             "digitalgain",
             "FPGA digital gains from the F-Engine.",
-            "DigitalGainAcqDetect",
+            None,
         ),
         at(
             8,
             "gain",
             "Complex gains from the calibration broker.",
-            "CalibrationGainAcqDetect",
+            None,
         ),
         at(
             9,
             "flaginput",
             "Good correlator input flags from the flagging broker.",
-            "FlagInputAcqDetect",
+            None,
         ),
         at(
             11,
@@ -114,18 +108,21 @@ def update_types() -> None:
             "corr",
             "Traditionally hand-tooled correlation products from a correlator.",
             "CorrFileInfo",
+            r"(?P<chunk_number>[0-9]{8})_(?P<freq_number>[0-9]{4})\.h5",
         ),
         ft(
             2,
             "log",
             "A human-readable log file produced by acquisition software.",
             None,
+            None,
         ),
-        ft(3, "hk", "A housekeeping file.", None),
+        ft(3, "hk", "A housekeeping file.", None, None),
         ft(
             4,
             "atmel_id",
             "A short file listing the ATMEL ID's and human readable names in an HK acquisition.",
+            None,
             None,
         ),
         ft(
@@ -133,21 +130,30 @@ def update_types() -> None:
             "rawadc",
             "Raw ADC data taken for testing the status of a correlator.",
             "RawadcFileInfo",
+            r"[0-9]{6}\.h5",
         ),
-        ft(6, "pdf", "A portable document file.", None),
+        ft(6, "pdf", "A portable document file.", None, None),
         ft(
             10,
             "weather",
             "Weather data scraped from the wview archive provided by DRAO.",
             "WeatherFileInfo",
+            r"(?P<date>20[1-9][0-9][01][0-9][0-3][0-9])\.h5",
         ),
-        ft(11, "hkp", "Archive of the prometheus housekeeping data.", None),
-        ft(12, "calibration", "Calibration data products.", "=cal_info_class"),
+        ft(11, "hkp", "Archive of the prometheus housekeeping data.", None, None),
+        ft(
+            12,
+            "calibration",
+            "Calibration data products.",
+            "cal_info_class",
+            r"[0-9]{8}\.h5",
+        ),
         ft(
             14,
             "hfb",
             "21cm absorber (Hyper Fine Beam) data taken from a correlator.",
             "HFBFileInfo",
+            r"hfb_(?P<chunk_number>[0-9]{8})_(?P<freq_number>[0-9]{4})\.h5",
         ),
     ]
 

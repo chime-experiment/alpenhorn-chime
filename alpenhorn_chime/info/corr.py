@@ -1,7 +1,6 @@
 """CHIME correlator info tables."""
 from typing import BinaryIO
 
-import re
 import h5py
 import numpy as np
 import peewee as pw
@@ -75,38 +74,6 @@ class CorrFileInfo(CHIMEFileInfo):
     finish_time = pw.DoubleField(null=True)
     chunk_number = pw.IntegerField(null=True)
     freq_number = pw.IntegerField(null=True)
-
-    @classmethod
-    def _parse_filename(cls, name: str) -> dict:
-        """Return chunk and frequency based on `name`.
-
-        Copied from `chimedb.data_index.util.parse_corrfile_name`.
-
-        Parameters
-        ----------
-        name : str
-            Correlator filename.
-
-        Returns
-        -------
-        dict with keys:
-
-        chunk_number : int
-            chunk number
-        freq_number : int
-            frequency number
-
-        Raises
-        ------
-        ValueError
-            `name` didn't have the right form
-        """
-
-        match = re.match(r"([0-9]{8})_([0-9]{4})\.h5", name)
-        if not match:
-            raise ValueError(f"bad correlator file name: {name}")
-
-        return {"chunk_number": int(match.group(1)), "freq_number": int(match.group(2))}
 
     def _info_from_file(self, file: BinaryIO) -> dict:
         """Get corr file info.

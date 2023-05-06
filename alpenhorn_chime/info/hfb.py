@@ -1,11 +1,9 @@
 """CHIME HFB info tables."""
 from typing import BinaryIO
 
-import re
 import h5py
 import numpy as np
 import peewee as pw
-from alpenhorn.acquisition import ArchiveAcq, ArchiveFile
 
 from .base import CHIMEAcqInfo, CHIMEFileInfo
 
@@ -28,7 +26,6 @@ class HFBAcqInfo(CHIMEAcqInfo):
 
     """
 
-    acq = pw.ForeignKeyField(ArchiveAcq, backref="hfbinfos")
     integration = pw.DoubleField(null=True)
     nfreq = pw.IntegerField(null=True)
     nsubfreq = pw.IntegerField(null=True)
@@ -81,43 +78,10 @@ class HFBFileInfo(CHIMEFileInfo):
         End of acquisition in UNIX time.
     """
 
-    file = pw.ForeignKeyField(ArchiveFile, backref="hfbinfos")
     start_time = pw.DoubleField(null=True)
     finish_time = pw.DoubleField(null=True)
     chunk_number = pw.IntegerField(null=True)
     freq_number = pw.IntegerField(null=True)
-
-    @classmethod
-    def _parse_filename(cls, name: str) -> dict:
-        """Return chunk and frequency based on `name`.
-
-        Copied from `chimedb.data_index.util.parse_hfbfile_name`.
-
-        Parameters
-        ----------
-        name : str
-            A HFB filename
-
-        Returns
-        -------
-        dict with keys:
-
-        chunk_number : int
-            chunk number
-        freq_number : int
-            frequency number
-
-        Raises
-        ------
-        ValueError
-            `name` didn't have the right form
-        """
-
-        match = re.match(r"hfb_([0-9]{8})_([0-9]{4})\.h5", name)
-        if not match:
-            raise ValueError(f"bad HFB file name: {name}")
-
-        return {"chunk_number": int(match.group(1)), "freq_number": int(match.group(2))}
 
     def _info_from_file(self, file: BinaryIO) -> dict:
         """Get HFB file info.

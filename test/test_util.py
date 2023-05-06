@@ -1,7 +1,7 @@
 """Test util."""
 
 from alpenhorn_chime import util
-from alpenhorn.acquisition import AcqType, FileType, AcqFileTypes
+from alpenhorn_chime.types import AcqType, FileType, AcqFileTypes
 
 
 def test_update_types(tables):
@@ -14,16 +14,16 @@ def test_update_types(tables):
     type_data = {
         "corr": {"acq_class": "CorrAcqInfo", "file_class": "CorrFileInfo"},
         "hfb": {"acq_class": "HFBAcqInfo", "file_class": "HFBFileInfo"},
-        "weather": {"acq_class": "WeatherAcqDetect", "file_class": "WeatherFileInfo"},
+        "weather": {"acq_class": None, "file_class": "WeatherFileInfo"},
         "rawadc": {"acq_class": "RawadcAcqInfo", "file_class": "RawadcFileInfo"},
     }
 
     for name, data in type_data.items():
         at = AcqType.get(name=name)
-        assert at.info_class == "alpenhorn_chime.info." + data["acq_class"]
+        assert at.info_class == data["acq_class"]
 
         ft = FileType.get(name=name)
-        assert ft.info_class == "alpenhorn_chime.info." + data["file_class"]
+        assert ft.info_class == data["file_class"]
 
         fts = list(AcqFileTypes.select().where(AcqFileTypes.acq_type == at))
         assert len(fts) == 1
@@ -31,15 +31,11 @@ def test_update_types(tables):
 
     # The calibration types are different
     ft = FileType.get(name="calibration")
-    assert ft.info_class == "=alpenhorn_chime.info.cal_info_class"
+    assert ft.info_class == "cal_info_class"
 
-    for name, acqclass in [
-        ("digitalgain", "DigitalGainAcqDetect"),
-        ("gain", "CalibrationGainAcqDetect"),
-        ("flaginput", "FlagInputAcqDetect"),
-    ]:
+    for name in ["digitalgain", "gain", "flaginput"]:
         at = AcqType.get(name=name)
-        assert at.info_class == "alpenhorn_chime.info." + acqclass
+        assert at.info_class is None
 
         fts = list(AcqFileTypes.select().where(AcqFileTypes.acq_type == at))
         assert len(fts) == 1

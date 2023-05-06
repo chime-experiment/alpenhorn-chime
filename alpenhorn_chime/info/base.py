@@ -1,128 +1,148 @@
-"""Alpenhorn2-style CHIME Info base classes."""
+"""CHIME Info base classes."""
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import calendar
-import datetime
 import peewee as pw
-from alpenhorn.info_base import info_base, acq_info_base, file_info_base
+from alpenhorn.db import base_model
 
-from ..inst import ArchiveInst
+from ..detection import ArchiveAcq, ArchiveFile
 
 if TYPE_CHECKING:
     import pathlib
-    from alpenhorn.acquisition import ArchiveAcq, AcqType, ArchiveFile
-    from alpenhorn.storage import StorageNode
+    from alpenhorn.update import UpdateableNode
 
 
-class CHIMEAcqDetect(info_base):
-    """Abstract base info class for a CHIME acqusition
+class InfoBase(base_model):
+    """Abstract base class for CHIME Info tables.
 
-    This handles parsing the standard CHIME acquisiton name
-    format and determining whether or not this is a CHIME acq.
+    The keyword parameters "node_" and "path_", if present, are passed,
+    along with the ArchiveAcq or ArchiveFile, to the method `_set_info`
+    which must be re-implemented by subclasses.
 
-    This does not implement a table.  It can be used for any
-    CHIME AcqType that doesn't have an Info table and only needs
-    to do type detection.
+    The dict returned from this `_set_info` call is merged into the list of
+    keyword parameters (after removing the keywords listed above).  These
+    merged keyword parameters is passed to the `peewee.Model` initialiser.
 
-    CHIME AcqTypes which _do_ have an Info table should subclass from
-    from `CHIMEAcqInfo` and not this class.
+    This _set_info() call is only performed if the "node_" and
+    "path_" keywords are provided.  The trailing underscore on these
+    keywords prevents the potential for clashes with field names of
+    the underlying table.
     """
 
-    @classmethod
-    def is_type(cls, path: pathlib.Path, node: StorageNode) -> bool:
-        """Is this a CHIME acquisition?
+    # Should be set to True for Acq Info classes
+    is_acq = False
+
+    def __init__(self, *args, **kwargs) -> None:
+        """initialise an instance.
 
         Parameters
         ----------
-        path : pathlib.Path
-            the acqusition path to check
-        node : StorageNode
-            usused
-
-        Returns
-        -------
-        is_type : bool
-            True if `path` is a an acqusition of the class type.
-        """
-        # A standard CHIME acqusition name has the form:
-        #
-        #   <ISO-8601-datetime>_<inst-name>_<type-name>
-        #
-        # where the datetime has the form: YYYMMDDTHHMMSSZ
-
-        # Split the path on underscores
-        parts = str(path).split("_")
-
-        # If we don't have three parts, the path is invalid
-        if len(parts) != 3:
-            return False
-
-        # Check that the final part is the same as the type name
-        if parts[2] != cls.type().name:
-            return False
-
-        # Check that the second part is a known ArchiveInst
-        try:
-            ArchiveInst.get(name=parts[1])
-        except pw.DoesNotExist:
-            return False
-
-        # Check that the first part is a valid date
-        try:
-            cls.timestamp_from_name(parts[0])
-        except ValueError:
-            return False
-
-        # Otherwise type detection succeeds
-        return True
-
-    @classmethod
-    def timestamp_from_name(cls, path: pathlib.Path | str) -> int:
-        """Return epoch timestamp from acq path `path`
-
-        Parameters
-        ----------
-        path : path.Pathlib or str
-            The name of the acqusition
-
-        Returns
-        -------
-        timestamp : int
-            The seconds-since-epoch of the acq time
-            encoded in the acq path.
+        node_ : alpenhorn.update.UpdateableNode or None
+            The node on which the imported file is
+        path_ : pathlib.Path or None
+            Path to the imported file.  Relative to `node.root`.
 
         Raises
         ------
         ValueError
-            path was not a valid date
+            the keyword "path_" was given, but "node_" was not.
         """
-        d = datetime.datetime.strptime(str(path)[0:16], "%Y%m%dT%H%M%SZ")
-        return calendar.timegm(d.utctimetuple())
+
+        # Remove keywords we consume
+        path = kwargs.pop("path_", None)
+        node = kwargs.pop("node_", None)
+        name_data = kwargs.pop("name_data_", tuple())
+
+        # If we were given an "item_", convert it to an acq or file as apporpriate
+        item = kwargs.pop("item_", None)
+        if item is not None:
+            if self.is_acq:
+                kwargs["acq"] = item
+            else:
+                kwargs["file"] = item
+
+        # Call _set_info, if necessary
+        if path is not None:
+            if node is None:
+                raise ValueError("no node_ specified with path_")
+
+            # Info returned is merged into kwargs so the peewee model can
+            # ingest it.
+            kwargs |= self._set_info(path=path, node=node, name_data=name_data)
+
+        # Continue init
+        super().__init__(*args, **kwargs)
+
+    def _set_info(
+        self,
+        path: pathlib.Path,
+        node: UpdateableNode,
+        re_groups: tuple,
+    ) -> dict:
+        """Generate info table field data for this path.
+
+        Calls to this method occur as part of object initialisation during
+        an init() call.
+
+        Subclasses must re-implement this method to generate metadata by
+        inspecting the acqusition or file on disk given by `path`.  To
+        access a file on the node, don't open() the path directly; use
+        `node.io.open(path)`.
+
+        Parameters
+        ----------
+        path : pathlib.Path
+            path to the file being imported.  Note this is _always_
+            the _file_ path, even for acqusitions.  Relative to
+            `node.db.root`.
+        node : alpenhorn.update.UpdateableNode
+            node where the file has been imported
+        re_groups : tuple
+            For File Info classes, this is a possibly-empty tuple containing
+            group matches from the pattern match that was performed on the
+            file name.  For Acq Info classes, this is always an empty tuple.
+
+        Returns
+        -------
+        info : dict
+            table data to be passed on to the peewee `Model` initialiser.
+
+        On error, implementations should raise an appropriate exception.
+        """
+        raise NotImplementedError("must be re-implemented by subclass")
 
 
-class CHIMEAcqInfo(CHIMEAcqDetect, acq_info_base):
+class CHIMEAcqInfo(InfoBase):
     """Abstract base class for CHIME Acq Info tables.
 
-    In addition to the type detection provided by CHIMEAcqDetect,
-    this adds the standard Alpenhorn AcqInfo base table.
-
-    Provides an implementation of `_set_info` for convenience which
-    converts the call into a call to `_info_from_file`.
+    Add acq info base column `acq` and provides an implementation
+    of `_set_info` for convenience which converts the call into a
+    call to `_info_from_file`.
 
     Subclasses should add additional fields.  They should also
     either reimplement `_set_info` or else implement the method
     `_info_from_file` which will be passed an open, read-only
     file object.
+
+    Attributes
+    ----------
+    acq : foreign key to ArchiveAcq (or ArchiveAcq)
+        the corresponding acquisition record
     """
 
-    def _set_info(
-        self, node: StorageNode, path: pathlib.Path, item: ArchiveAcq
-    ) -> dict:
-        """Set info for new ArchiveAcq `item` from file `path`.
+    is_acq = True
 
-        Converts the standard Alpenhorn _set_info call
-        into a `_info_from_file` call, if that method exists.
+    acq = pw.ForeignKeyField(ArchiveAcq)
+
+    def _set_info(
+        self,
+        path: pathlib.Path,
+        node: UpdateableNode,
+        name_data: dict,
+    ) -> dict:
+        """Set acq info from file `path` on node `node`.
+
+        Calls `_info_from_file` to generate info data.
 
         Parameters
         ----------
@@ -131,14 +151,21 @@ class CHIMEAcqInfo(CHIMEAcqDetect, acq_info_base):
         path : pathlib.Path
             the path relative to `node.root` of the file
             being imported in this acquistion
-        item : alpenhorn.archive.ArchiveAcq
-            the newly-created acq record
+        name_data : dict
+            ignored
 
         Returns
         -------
         info : dict
             any data returned by `_info_from_file`, if that
             method exists, or else an empty dict.
+
+        Notes
+        -----
+        For acqusitions, the only key in `name_data` is "acqtime" which
+        contains a `datetime` with the value of the acqusition timestamp.
+        If that value is important, subclasses must re-implement this
+        method to capture it.
         """
         if hasattr(self, "_info_from_file"):
             # Open the file
@@ -149,7 +176,7 @@ class CHIMEAcqInfo(CHIMEAcqDetect, acq_info_base):
             return dict()
 
 
-class CHIMEFileInfo(file_info_base):
+class CHIMEFileInfo(InfoBase):
     """Abstract base info class for a CHIME file
 
     Subclasses must re-implement `_parse_filename` to implement
@@ -161,70 +188,38 @@ class CHIMEFileInfo(file_info_base):
     file object.
     """
 
-    @classmethod
-    def _parse_filename(cls, name: str) -> dict | None:
-        """Parse the filename `name`.
+    file = pw.ForeignKeyField(ArchiveFile)
 
-        Called from is_type() to check whether this is an
-        appropriate file.  If it isn't, raise ValueError.
-
-        Also called by the default `_set_info()`: if it returns
-        a dict, the contents of that dict will be added to the info
-        data.
-
-        Parameters
-        ----------
-        name : str
-            the name of the file being imported.
-
-        Raises
-        ------
-        ValueError
-            the name was not valid for this type
-        """
-        raise NotImplementedError("must be re-implemented in subclass")
-
-    @classmethod
-    def is_type(
-        cls,
-        path: pathlib.Path,
-        node: StorageNode,
-        acqtype: AcqType,
-        acqname: str,
-    ) -> bool:
-        """Returns true if this is a corr file."""
-        try:
-            cls._parse_filename(path.name)
-        except ValueError:
-            return False
-
-        return True
+    group_keys = tuple()
 
     def _set_info(
-        self, node: StorageNode, path: pathlib.Path, item: ArchiveFile
+        self,
+        path: pathlib.Path,
+        node: UpdateableNode,
+        name_data: dict,
     ) -> dict:
-        """Set info for new ArchiveFile `item` from file `path`.
+        """Set file info from file `path` on node `node`.
 
         If defined in the class, calls `_info_from_file` to
         populate the info record.
 
-        Additionally, if `_parse_filename` returns a dict, that
-        will also be merged into the info data.
+        Additional fields provided in `name_data` are also merged
+        into the returned dict.
 
         Parameters
         ----------
-        node : StorageNode
+        node : UpdateableNode
             the node we're importing on
         path : pathlib.Path
             the path relative to `node.root` of the file being imported
-        item : alpenhorn.archive.ArchiveFile
-            the newly-created file record
+        name_data : dict
+            other dict entries merged into the returned dict.  May be empty.
 
         Returns
         -------
         info : dict
             A dict containing data from `_info_from_file` and/or
-            `_parse_filename`.
+            `name_data`.
         """
         if hasattr(self, "_info_from_file"):
             # Open the file
@@ -234,10 +229,4 @@ class CHIMEFileInfo(file_info_base):
         else:
             info = dict()
 
-        # Try _parse_filename, too
-        result = self._parse_filename(path.name)
-
-        if isinstance(result, dict):
-            info |= result
-
-        return info
+        return info | name_data

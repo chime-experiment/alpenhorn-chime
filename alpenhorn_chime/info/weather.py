@@ -1,23 +1,16 @@
 """Weather data info classes."""
 from __future__ import annotations
-from typing import TYPE_CHECKING, BinaryIO
+from typing import TYPE_CHECKING
 
-import re
 import calendar
 import datetime
 import peewee as pw
 
-from .base import CHIMEAcqDetect, CHIMEFileInfo
+from .base import CHIMEFileInfo
 
 if TYPE_CHECKING:
     import pathlib
-    from alpenhorn.acquisition import ArchiveAcq
-    from alpenhorn.storage import StorageNode
-
-
-# No-model acq class
-class WeatherAcqDetect(CHIMEAcqDetect):
-    pass
+    from alpenhorn.update import UpdateableNode
 
 
 class WeatherFileInfo(CHIMEFileInfo):
@@ -39,33 +32,15 @@ class WeatherFileInfo(CHIMEFileInfo):
     finish_time = pw.DoubleField(null=True)
     date = pw.CharField(null=True, max_length=8)
 
-    @classmethod
-    def _parse_filename(cls, name: str) -> None:
-        """Is this a valid RAW adc filename?
-
-        Parameters
-        ----------
-        name : str
-            Rawadc filename.
-
-        Raises
-        ------
-        ValueError
-            `name` didn't have the right form
-        """
-        if not re.match(r"(20[1-9][0-9][01][0-9][0-3][0-9])\.h5", name):
-            raise ValueError(f"bad weather file name: {name}")
-
-    def _set_info(
-        self, node: StorageNode, path: pathlib.Path, item: ArchiveAcq
-    ) -> dict:
+    def _set_info(self, node: UpdateableNode, path: pathlib.Path, name_data: dict) -> dict:
         """Generate weather file info."""
 
-        date = datetime.datetime.strptime(str(path)[0:8], "%Y%m%d")
-        start_time = calendar.timegm(date.utctimetuple())
+        date = name_data["date"]
+        dt = datetime.datetime.strptime(date, "%Y%m%d")
+        start_time = calendar.timegm(dt.utctimetuple())
         finish_time = calendar.timegm(
             (
-                date + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
+                dt + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
             ).utctimetuple()
         )
 

@@ -1,23 +1,11 @@
 """Alpenhorn extensions for CHIME."""
 
-import peewee as pw
-
-from .inst import set_inst, ArchiveInst
+from .detection import import_detect
 
 
 def register_extension() -> dict:
     """Return alpenhorn extension data.
 
-    This module extends ArchiveAcq to add the `inst` field.
+    This module provides the CHIME import-detect routine.
     """
-    return {
-        "model": [
-            {
-                "table": "ArchiveAcq",
-                "setter": set_inst,
-                "fields": {
-                    "inst": pw.ForeignKeyField(ArchiveInst, backref="acqs", null=True)
-                },
-            }
-        ]
-    }
+    return {"import-detect": import_detect}

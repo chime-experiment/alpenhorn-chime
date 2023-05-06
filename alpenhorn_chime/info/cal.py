@@ -3,29 +3,13 @@
 i.e gain, digitalgain, flaginput
 """
 from __future__ import annotations
-from typing import TYPE_CHECKING, BinaryIO
+from typing import BinaryIO
 
-import re
 import h5py
 import peewee as pw
 
-from .base import CHIMEAcqDetect, CHIMEFileInfo
-
-if TYPE_CHECKING:
-    from alpenhorn.acquisition import AcqType
-
-
-# No-table acq info
-class DigitalGainAcqDetect(CHIMEAcqDetect):
-    pass
-
-
-class CalibrationGainAcqDetect(CHIMEAcqDetect):
-    pass
-
-
-class FlagInputAcqDetect(CHIMEAcqDetect):
-    pass
+from .base import CHIMEFileInfo
+from ..detection import ArchiveAcq, ArchiveFile
 
 
 class CalibrationFileInfo(CHIMEFileInfo):
@@ -43,23 +27,6 @@ class CalibrationFileInfo(CHIMEFileInfo):
 
     start_time = pw.DoubleField(null=True)
     finish_time = pw.DoubleField(null=True)
-
-    @classmethod
-    def _parse_filename(cls, name: str) -> None:
-        """Check if cal file has the right form.
-
-        Parameters
-        ----------
-        name : str
-            Filename.
-
-        Raises
-        ------
-        ValueError
-            `name` didn't have the right form
-        """
-        if not re.match(r"[0-9]{8}\.h5", name):
-            raise ValueError(f"bad cal data file: {name}")
 
     def _info_from_file(self, file: BinaryIO) -> dict:
         """Get cal file info.
@@ -92,13 +59,25 @@ class FlagInputFileInfo(CalibrationFileInfo):
 
 
 # This is the indirect file class function for "calibration" files
-def cal_info_class(acqtype: AcqType) -> type[CalibrationFileInfo]:
-    """Return calibration file info class for `acqtype`."""
+def cal_info_class(file: ArchiveFile) -> type[CalibrationFileInfo]:
+    """Return calibration file info class for `file`.
 
-    if acqtype.name == "digitalgain":
+    Calibration info classes depend on AcqType.  They probably
+    shouldn't and there should probably just be a single one,
+    because they're all the same anyways.
+
+    Parameters
+    ----------
+    file : ArchiveFile
+        the archive file object for which we're generating info
+    """
+
+    acqtype_name = file.acq.type.name
+
+    if acqtype_name == "digitalgain":
         return DigitalGainFileInfo
-    if acqtype.name == "gain":
+    if acqtype_name == "gain":
         return CalibrationGainFileInfo
-    if acqtype.name == "flaginput":
+    if acqtype_name == "flaginput":
         return FlagInputFileInfo
-    raise ValueError(f'unknown acqtype: {acqtype.name}"')
+    raise ValueError(f'unknown acqtype: {acqtype_name}"')

@@ -1,7 +1,6 @@
 """Test everything by running alpenhorn import on the test data."""
-
-import os
 import pytest
+
 import shutil
 import pathlib
 import tempfile
@@ -10,17 +9,15 @@ from time import sleep
 from signal import SIGINT
 from unittest.mock import patch
 
-from alpenhorn.acquisition import ArchiveFile, AcqType, FileType
 from alpenhorn.archive import ArchiveFileCopy
 from alpenhorn.storage import StorageGroup, StorageNode
 
 from alpenhorn_chime import util
+from alpenhorn_chime.detection import ArchiveAcq, ArchiveFile
 from alpenhorn_chime.inst import ArchiveInst
 from alpenhorn_chime.info import (
     CorrAcqInfo,
     CorrFileInfo,
-    HFBAcqInfo,
-    HFBFileInfo,
     RawadcAcqInfo,
     RawadcFileInfo,
     WeatherFileInfo,
@@ -30,6 +27,7 @@ from alpenhorn_chime.info.cal import (
     CalibrationGainFileInfo,
     FlagInputFileInfo,
 )
+from alpenhorn_chime.types import AcqType, FileType
 
 
 @pytest.fixture
@@ -65,7 +63,7 @@ def test_data(proxy, tables, testdata):
 
     # Storage group and node
     group = StorageGroup.create(name="group")
-    node = StorageNode.create(
+    StorageNode.create(
         name="node",
         group=group,
         root=testdata,
@@ -91,7 +89,7 @@ def set_env(testdata, tempdb):
         yield
 
 
-def test_import(tempdb, set_env, tables, chime_data, test_data, ExtendedArchiveAcq):
+def test_import(tempdb, set_env, tables, chime_data, test_data):
     """Test import of CHIME files."""
 
     alpenhornd = shutil.which("alpenhornd")
@@ -137,7 +135,7 @@ def test_import(tempdb, set_env, tables, chime_data, test_data, ExtendedArchiveA
             AcqType.get(name="corr"),
         ),
     }
-    for acq in ExtendedArchiveAcq.select():
+    for acq in ArchiveAcq.select():
         assert acq.inst == acq_data[acq.name][0]
         assert acq.type == acq_data[acq.name][1]
 
@@ -173,39 +171,31 @@ def test_import(tempdb, set_env, tables, chime_data, test_data, ExtendedArchiveA
         ids[file.name] = file.id
 
     # Now check all the info tables.
-    # We have to call set_config on these table models
-    # because they're meant for alpenhorn and not for
-    # data retrieval.
-    DigitalGainFileInfo.set_config(FileType.get(name="calibration"))
     assert DigitalGainFileInfo.select().count() == 1
     for info in DigitalGainFileInfo.select():
         assert info.file.id == ids["00001101.h5"]
         assert info.start_time == 1616329701.187867
         assert info.finish_time == 1616329701.187867
 
-    CalibrationGainFileInfo.set_config(FileType.get(name="calibration"))
     assert CalibrationGainFileInfo.select().count() == 1
     for info in CalibrationGainFileInfo.select():
         assert info.file.id == ids["00358972.h5"]
         assert info.start_time == 1604547772.630382
         assert info.finish_time == 1604547796.087183
 
-    FlagInputFileInfo.set_config(FileType.get(name="calibration"))
     assert FlagInputFileInfo.select().count() == 1
     for info in FlagInputFileInfo.select():
         assert info.file.id == ids["00947042.h5"]
         assert info.start_time == 1641942242.17755
         assert info.finish_time == 1641945009.510767
 
-    WeatherFileInfo.set_config(FileType.get(name="weather"))
     assert WeatherFileInfo.select().count() == 1
     for info in WeatherFileInfo.select():
         assert info.file.id == ids["20221106.h5"]
-        assert info.date == "2022-11-01 00:00:00"
-        assert info.start_time == 1667260800.0
-        assert info.finish_time == 1667347199.0
+        assert info.date == "20221106"
+        assert info.start_time == 1667692800.0
+        assert info.finish_time == 1667779199.0
 
-    CorrFileInfo.set_config(FileType.get(name="corr"))
     assert CorrFileInfo.select().count() == 1
     for info in CorrFileInfo.select():
         assert info.file.id == ids["00000000_0000.h5"]
@@ -214,22 +204,19 @@ def test_import(tempdb, set_env, tables, chime_data, test_data, ExtendedArchiveA
         assert info.start_time == 1643499353.1176474
         assert info.finish_time == 1643499353.1176474
 
-    RawadcFileInfo.set_config(FileType.get(name="rawadc"))
     assert RawadcFileInfo.select().count() == 1
     for info in RawadcFileInfo.select():
         assert info.file.id == ids["000003.h5"]
         assert info.start_time == 1676325138.068710
         assert info.finish_time == 1676325566.065336
 
-    CorrAcqInfo.set_config(AcqType.get(name="corr"))
     assert CorrAcqInfo.select().count() == 1
     for info in CorrAcqInfo.select():
         assert info.acq.id == ids["20220129T233553Z_chimetiming_corr"]
         assert info.nfreq == 1024
         assert info.nprod == 120
-        assert info.integration == None
+        assert info.integration is None
 
-    RawadcAcqInfo.set_config(AcqType.get(name="rawadc"))
     assert RawadcAcqInfo.select().count() == 1
     for info in RawadcAcqInfo.select():
         assert info.acq.id == ids["20230213T201433Z_chime_rawadc"]

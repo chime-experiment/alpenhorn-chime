@@ -1,19 +1,12 @@
 """Common fixtures."""
 
 import pytest
-import peewee as pw
 import chimedb.core as db
 from alpenhorn import db as adb
-from alpenhorn.acquisition import (
-    ArchiveAcq,
-    ArchiveFile,
-    AcqType,
-    FileType,
-    AcqFileTypes,
-)
 from alpenhorn.archive import ArchiveFileCopy, ArchiveFileCopyRequest
 from alpenhorn.storage import StorageNode, StorageGroup
 
+from alpenhorn_chime.detection import ArchiveAcq, ArchiveFile
 from alpenhorn_chime.inst import ArchiveInst
 from alpenhorn_chime.info import (
     CorrAcqInfo,
@@ -29,6 +22,7 @@ from alpenhorn_chime.info.cal import (
     CalibrationGainFileInfo,
     FlagInputFileInfo,
 )
+from alpenhorn_chime.types import AcqType, FileType, AcqFileTypes
 
 
 @pytest.fixture
@@ -47,25 +41,14 @@ def proxy():
 
 
 @pytest.fixture
-def ExtendedArchiveAcq(proxy):
-    # Extended ArchiveAcq
-    class ExtendedArchiveAcq(ArchiveAcq):
-        inst = pw.ForeignKeyField(ArchiveInst, backref="acqs", null=True)
-
-        class Meta:
-            table_name = ArchiveAcq._meta.table_name
-
-    return ExtendedArchiveAcq
-
-
-@pytest.fixture
-def tables(proxy, ExtendedArchiveAcq):
+def tables(proxy):
     """Ensure all the tables are created."""
 
     proxy.create_tables(
         [
             AcqFileTypes,
             AcqType,
+            ArchiveAcq,
             ArchiveFile,
             ArchiveFileCopy,
             ArchiveFileCopyRequest,
@@ -74,7 +57,6 @@ def tables(proxy, ExtendedArchiveAcq):
             CorrAcqInfo,
             CorrFileInfo,
             DigitalGainFileInfo,
-            ExtendedArchiveAcq,
             FileType,
             FlagInputFileInfo,
             HFBAcqInfo,
