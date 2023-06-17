@@ -93,7 +93,7 @@ def store_info(
     Parameters
     ----------
     copy : alpenhorn.archive.ArchiveFileCopy
-        The newly-imported file copy; unused
+        The newly-imported file copy
     file : alpenhorn.acquisition.ArchiveFile or None
         If this import created the ArchiveFile, this is it.  Otherwise None.
     acq : alpenhorn.acquisition.ArchiveAcq or None
@@ -108,6 +108,7 @@ def store_info(
 
     # Add extra acq data, if necessary
     if acq is not None:
+        # Our ArchiveAcq is not Alpenhorn's ArchiveAcq
         acq = ArchiveAcq.get(id=acq.id)
         acq.type = import_data["acqtype"]
         acq.inst = import_data["acqinst"]
@@ -124,6 +125,7 @@ def store_info(
 
     # Add extra file data, if necessary
     if file is not None:
+        # Our ArchiveFile is not Alpenhorn's ArchiveFile
         file = ArchiveFile.get(id=file.id)
         file.type = import_data["filetype"]
         file.save()
