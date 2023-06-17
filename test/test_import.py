@@ -9,25 +9,26 @@ from time import sleep
 from signal import SIGINT
 from unittest.mock import patch
 
+from chimedb.data_index import util
+
 from alpenhorn.archive import ArchiveFileCopy
 from alpenhorn.storage import StorageGroup, StorageNode
 
-from alpenhorn_chime import util
-from alpenhorn_chime.detection import ArchiveAcq, ArchiveFile
-from alpenhorn_chime.inst import ArchiveInst
-from alpenhorn_chime.info import (
+from chimedb.data_index.orm import (
     CorrAcqInfo,
+    ArchiveAcq,
+    ArchiveFile,
+    ArchiveInst,
     CorrFileInfo,
     RawadcAcqInfo,
     RawadcFileInfo,
     WeatherFileInfo,
-)
-from alpenhorn_chime.info.cal import (
     DigitalGainFileInfo,
     CalibrationGainFileInfo,
     FlagInputFileInfo,
+    AcqType,
+    FileType,
 )
-from alpenhorn_chime.types import AcqType, FileType
 
 
 @pytest.fixture

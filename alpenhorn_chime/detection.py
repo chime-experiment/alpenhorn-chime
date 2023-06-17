@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import re
+import pathlib
 import datetime
 import peewee as pw
 from functools import partial
@@ -15,39 +16,20 @@ from functools import partial
 from alpenhorn.acquisition import ArchiveAcq as AlpenAcq
 from alpenhorn.acquisition import ArchiveFile as AlpenFile
 
-from .types import AcqType, FileType
-from .inst import ArchiveInst
+import chimedb.core as db
+
+from chimedb.data_index.orm import (
+    AcqType,
+    ArchiveAcq,
+    ArchiveFile,
+    ArchiveInst,
+)
 
 if TYPE_CHECKING:
-    import pathlib
     from collections.abc import Callable
 
     from alpenhorn.archive import ArchiveFileCopy
     from alpenhorn.update import UpdateableNode
-
-
-# Extended CHIME versions of the tables
-class ArchiveAcq(AlpenAcq):
-    """Extend ArchiveAcq record.
-
-    Adds "type" and "inst" to hold a refernce to the AcqType and ArchiveInst.
-    """
-
-    type = pw.ForeignKeyField(AcqType, backref="acqs", null=True)
-    inst = pw.ForeignKeyField(ArchiveInst, backref="acqs", null=True)
-
-
-class ArchiveFile(AlpenFile):
-    """Extend ArchiveFile record.
-
-    Adds a "type" attribute to hold a refernce to the FileType.
-
-    Also re-implements "acq" to reference the CHIME ArchiveAcq and
-    not the base alpenhorn one.
-    """
-
-    acq = pw.ForeignKeyField(ArchiveAcq, backref="files")
-    type = pw.ForeignKeyField(FileType, backref="files", null=True)
 
 
 def set_info(
@@ -111,7 +93,7 @@ def store_info(
     Parameters
     ----------
     copy : alpenhorn.archive.ArchiveFileCopy
-        The newly-imported file copy
+        The newly-imported file copy; unused
     file : alpenhorn.acquisition.ArchiveFile or None
         If this import created the ArchiveFile, this is it.  Otherwise None.
     acq : alpenhorn.acquisition.ArchiveAcq or None
@@ -149,7 +131,7 @@ def store_info(
         set_info(
             import_data["filetype"].info_class,
             node=node,
-            path=file.path,
+            path=pathlib.PurePath(file.acq.name, file.name),
             item=file,
             name_data=import_data["name_data"],
         )
@@ -238,6 +220,9 @@ def import_detect(
        When detection succeeds, this is a `functools.partial`
        wrapping `store_info`.  On failure, this is None.
     """
+
+    # Ensure the DB is initialised.
+    db.connect(read_write=True)
 
     # Split the filename from the directory
     acq_name = str(path.parent)

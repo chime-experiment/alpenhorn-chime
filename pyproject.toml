@@ -14,6 +14,7 @@ license = {file = "LICENSE"}
 dependencies = [
   "alpenhorn @ git+https://github.com/radiocosmology/alpenhorn.git",
   "chimedb @ git+https://github.com/chime-experiment/chimedb.git",
+  "chimedb.data_index @ git+https://github.com/chime-experiment/chimedb_di.git",
   "h5py",
   "numpy",
 ]

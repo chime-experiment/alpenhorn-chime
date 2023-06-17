@@ -6,23 +6,24 @@ from alpenhorn import db as adb
 from alpenhorn.archive import ArchiveFileCopy, ArchiveFileCopyRequest
 from alpenhorn.storage import StorageNode, StorageGroup
 
-from alpenhorn_chime.detection import ArchiveAcq, ArchiveFile
-from alpenhorn_chime.inst import ArchiveInst
-from alpenhorn_chime.info import (
+from chimedb.data_index.orm import (
+    AcqFileTypes,
+    AcqType,
+    ArchiveAcq,
+    ArchiveFile,
+    ArchiveInst,
+    CalibrationGainFileInfo,
     CorrAcqInfo,
     CorrFileInfo,
+    DigitalGainFileInfo,
+    FileType,
+    FlagInputFileInfo,
     HFBAcqInfo,
     HFBFileInfo,
     RawadcAcqInfo,
     RawadcFileInfo,
     WeatherFileInfo,
 )
-from alpenhorn_chime.info.cal import (
-    DigitalGainFileInfo,
-    CalibrationGainFileInfo,
-    FlagInputFileInfo,
-)
-from alpenhorn_chime.types import AcqType, FileType, AcqFileTypes
 
 
 @pytest.fixture
