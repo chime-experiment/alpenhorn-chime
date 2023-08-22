@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 import logging
 from datetime import datetime
 
-from alpenhorn.io.lfsquota import LFSQuotaNodeIO
+from alpenhorn.io.lustrequota import LustreQuotaNodeIO
 from chimedb.cfm.tags import FileReservation
 
 log = logging.getLogger(__name__)
@@ -18,10 +18,10 @@ if TYPE_CHECKING:
     from alpenhorn.archive import ArchiveFileCopy, ArchiveFileCopyRequest
 
 
-class ReservingNodeIO(LFSQuotaNodeIO):
+class ReservingNodeIO(LustreQuotaNodeIO):
     """Node I/O class for Reserving nodes.
 
-    This behaves like a LFSQuota node (which itself is almost the same as
+    This behaves like a LustreQuota node (which itself is almost the same as
     a Default node) except:
       * pulls to the node fail if there isn't a reservation record for the
         ArchiveFile already in the FileReservation table.
