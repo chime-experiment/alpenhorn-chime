@@ -4,6 +4,7 @@ CHIME's import detection logic is fairly simple and
 is performed by pattern matching on the acqusition
 directory and filename.
 """
+
 from __future__ import annotations
 from typing import TYPE_CHECKING
 

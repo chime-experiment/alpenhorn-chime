@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0.0.", "wheel", "setuptools-git-versioning"]
-build-backed = "setuptools.build_meta"
+requires = ["setuptools>=61.0.0", "wheel", "setuptools-git-versioning"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "alpenhorn_chime"
