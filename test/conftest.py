@@ -4,7 +4,7 @@ import pytest
 import chimedb.core as db
 from alpenhorn import db as adb
 from alpenhorn.archive import ArchiveFileCopy, ArchiveFileCopyRequest
-from alpenhorn.storage import StorageNode, StorageGroup
+from alpenhorn.storage import StorageNode, StorageGroup, StorageTransferAction
 
 from chimedb.data_index.orm import (
     AcqFileTypes,
@@ -66,6 +66,7 @@ def tables(proxy):
             RawadcFileInfo,
             StorageGroup,
             StorageNode,
+            StorageTransferAction,
             WeatherFileInfo,
         ]
     )

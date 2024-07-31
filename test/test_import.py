@@ -1,4 +1,5 @@
 """Test everything by running alpenhorn import on the test data."""
+
 import pytest
 
 import shutil
