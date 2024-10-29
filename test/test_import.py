@@ -12,8 +12,7 @@ from unittest.mock import patch
 
 from chimedb.data_index import util
 
-from alpenhorn.archive import ArchiveFileCopy
-from alpenhorn.storage import StorageGroup, StorageNode
+from alpenhorn.db import ArchiveFileCopy, StorageGroup, StorageNode
 
 from chimedb.data_index.orm import (
     CorrAcqInfo,

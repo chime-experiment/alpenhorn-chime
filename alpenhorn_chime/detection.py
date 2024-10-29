@@ -14,8 +14,8 @@ import datetime
 import peewee as pw
 from functools import partial
 
-from alpenhorn.acquisition import ArchiveAcq as AlpenAcq
-from alpenhorn.acquisition import ArchiveFile as AlpenFile
+from alpenhorn.db import ArchiveAcq as AlpenAcq
+from alpenhorn.db import ArchiveFile as AlpenFile
 
 import chimedb.core as db
 
