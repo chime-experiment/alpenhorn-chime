@@ -2,9 +2,9 @@
 
 import pytest
 import chimedb.core as db
-from alpenhorn import db as adb
-from alpenhorn.archive import ArchiveFileCopy, ArchiveFileCopyRequest
-from alpenhorn.storage import StorageNode, StorageGroup, StorageTransferAction
+import alpenhorn.db as adb
+from alpenhorn.db import ArchiveFileCopy, ArchiveFileCopyRequest
+from alpenhorn.db import StorageNode, StorageGroup, StorageTransferAction
 
 from chimedb.data_index.orm import (
     AcqFileTypes,
