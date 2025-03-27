@@ -13,6 +13,7 @@ import pathlib
 import datetime
 import peewee as pw
 from functools import partial
+import logging
 
 from alpenhorn.db import ArchiveAcq as AlpenAcq
 from alpenhorn.db import ArchiveFile as AlpenFile
@@ -31,6 +32,9 @@ if TYPE_CHECKING:
 
     from alpenhorn.archive import ArchiveFileCopy
     from alpenhorn.update import UpdateableNode
+del TYPE_CHECKING
+
+log = logging.getLogger("alpenhorn_chime")
 
 
 def set_info(
@@ -66,7 +70,7 @@ def set_info(
 
     class_ = getattr(info, info_name)
 
-    # If class_ is _not_ a class, then we it's a function that will
+    # If class_ is _not_ a class, then we assume it's a function that will
     # return us the class when passed the archive item.
     if not isinstance(class_, type):
         class_ = class_(item)
@@ -140,9 +144,7 @@ def store_info(
         )
 
 
-def parse_acq(
-    name: str,
-) -> (datetime.datetime | None, ArchiveInst | None, AcqType | None):
+def parse_acq(name: str) -> dict | None:
     """Parse a CHIME acquisition name
 
     A standard CHIME acqusition name has the form:
@@ -169,6 +171,8 @@ def parse_acq(
     # Split the path on underscores
     parts = str(name).split("_")
 
+    log.debug(f"Parts: {parts}")
+
     # If we don't have three parts, the path is invalid
     if len(parts) != 3:
         return None
@@ -178,10 +182,6 @@ def parse_acq(
         acqtype = AcqType.get(name=parts[2])
     except pw.DoesNotExist:
         return None
-
-    import logging
-
-    logging.getLogger(__name__).info(f"AT: {acqtype!r}")
 
     # Check that the second part is a known ArchiveInst
     try:
@@ -241,7 +241,7 @@ def import_detect(
     # Try to determine the file type
     for filetype in import_data["acqtype"].file_types:
         if filetype.pattern is not None:
-            m = re.match(filetype.pattern, file_name)
+            m = re.fullmatch(filetype.pattern, file_name)
             if m is not None:
                 break
     else:
@@ -253,6 +253,8 @@ def import_detect(
 
     # Regex group matches, if any.  This a tuple which may be empty.
     import_data["name_data"] = m.groupdict()
+
+    log.debug(f"import_data: {import_data}")
 
     # Create partial for callback
     callback = partial(store_info, import_data=import_data)
