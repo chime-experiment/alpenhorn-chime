@@ -3,7 +3,11 @@
 import pytest
 import chimedb.core as db
 import alpenhorn.db as adb
-from alpenhorn.db import ArchiveFileCopy, ArchiveFileCopyRequest
+from alpenhorn.db import (
+    ArchiveFileCopy,
+    ArchiveFileCopyRequest,
+    ArchiveFileImportRequest,
+)
 from alpenhorn.db import StorageNode, StorageGroup, StorageTransferAction
 
 from chimedb.data_index.orm import (
@@ -53,6 +57,7 @@ def tables(proxy):
             ArchiveFile,
             ArchiveFileCopy,
             ArchiveFileCopyRequest,
+            ArchiveFileImportRequest,
             ArchiveInst,
             CalibrationGainFileInfo,
             CorrAcqInfo,
