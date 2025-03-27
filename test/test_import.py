@@ -96,23 +96,8 @@ def test_import(tempdb, set_env, tables, chime_data, test_data):
     alpenhornd = shutil.which("alpenhornd")
     assert alpenhornd is not None
 
-    # Start alpenhorn server in a subprocess
-    alp = subprocess.Popen([alpenhornd])
-
-    # Wait at most ten seconds
-    for x in range(10):
-        # Check for abnormal termination
-        assert not alp.poll()
-
-        # Wait until six files have been registered
-        if ArchiveFileCopy.select().count() == 6:
-            break
-
-        # Wait and try again
-        sleep(1)
-
-    # Terminate alpenhornd via keyboard interrupt
-    alp.send_signal(SIGINT)
+    # Start alpenhorn daemon in a subprocess
+    alp = subprocess.Popen([alpenhornd, "--exit-after-update", "--test-isolation"])
 
     # Wait for termination
     alp.wait()
