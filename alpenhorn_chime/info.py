@@ -12,6 +12,7 @@ from chimedb.data_index.orm import (
     HFBFileInfo,
     RawadcAcqInfo,
     RawadcFileInfo,
+    TimingCorrectionFileInfo,
     WeatherFileInfo,
 )
 
@@ -38,4 +39,6 @@ def cal_info_class(file: ArchiveFile) -> type[CalibrationFileInfo]:
         return CalibrationGainFileInfo
     if acqtype_name == "flaginput":
         return FlagInputFileInfo
+    if acqtype_name == "timing":
+        return TimingCorrectionFileInfo
     raise ValueError(f'unknown acqtype: {acqtype_name}"')
