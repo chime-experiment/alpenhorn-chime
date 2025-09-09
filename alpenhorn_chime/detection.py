@@ -30,8 +30,8 @@ from chimedb.data_index.orm import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from alpenhorn.archive import ArchiveFileCopy
-    from alpenhorn.update import UpdateableNode
+    from alpenhorn.db import ArchiveFileCopy
+    from alpenhorn.daemon.update import UpdateableNode
 del TYPE_CHECKING
 
 log = logging.getLogger("alpenhorn_chime")
