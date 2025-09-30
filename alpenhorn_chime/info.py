@@ -4,16 +4,9 @@ from chimedb.data_index.orm import (
     ArchiveFile,
     CalibrationFileInfo,
     CalibrationGainFileInfo,
-    CorrAcqInfo,
-    CorrFileInfo,
     DigitalGainFileInfo,
     FlagInputFileInfo,
-    HFBAcqInfo,
-    HFBFileInfo,
-    RawadcAcqInfo,
-    RawadcFileInfo,
     TimingCorrectionFileInfo,
-    WeatherFileInfo,
 )
 
 

@@ -6,14 +6,11 @@ import shutil
 import pathlib
 import tempfile
 import subprocess
-from time import sleep
-from signal import SIGINT
 from unittest.mock import patch
 
 from chimedb.data_index import util
 
 from alpenhorn.db import (
-    ArchiveFileCopy,
     DataIndexVersion,
     StorageGroup,
     StorageNode,
