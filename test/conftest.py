@@ -7,8 +7,11 @@ from alpenhorn.db import (
     ArchiveFileCopy,
     ArchiveFileCopyRequest,
     ArchiveFileImportRequest,
+    DataIndexVersion,
+    StorageNode,
+    StorageGroup,
+    StorageTransferAction,
 )
-from alpenhorn.db import StorageNode, StorageGroup, StorageTransferAction
 
 from chimedb.data_index.orm import (
     AcqFileTypes,
@@ -62,6 +65,7 @@ def tables(proxy):
             CalibrationGainFileInfo,
             CorrAcqInfo,
             CorrFileInfo,
+            DataIndexVersion,
             DigitalGainFileInfo,
             FileType,
             FlagInputFileInfo,

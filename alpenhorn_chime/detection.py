@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from alpenhorn.db import ArchiveFileCopy
-    from alpenhorn.daemon.update import UpdateableNode
+    from alpenhorn.daemon import UpdateableNode
 del TYPE_CHECKING
 
 log = logging.getLogger("alpenhorn_chime")

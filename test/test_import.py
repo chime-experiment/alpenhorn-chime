@@ -12,7 +12,13 @@ from unittest.mock import patch
 
 from chimedb.data_index import util
 
-from alpenhorn.db import ArchiveFileCopy, StorageGroup, StorageNode
+from alpenhorn.db import (
+    ArchiveFileCopy,
+    DataIndexVersion,
+    StorageGroup,
+    StorageNode,
+    current_version,
+)
 
 from chimedb.data_index.orm import (
     CorrAcqInfo,
@@ -53,6 +59,9 @@ def tempdb():
 @pytest.fixture
 def chime_data(tables):
     """Ensure the CHIME data has been added to the database."""
+
+    # Set schema version
+    DataIndexVersion.create(component="alpenhorn", version=current_version)
 
     util.update_types()
     util.update_inst()
