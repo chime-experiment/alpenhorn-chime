@@ -6,7 +6,7 @@ directory and filename.
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from collections.abc import Callable
 
 import re
 import pathlib
@@ -17,6 +17,8 @@ import logging
 
 from alpenhorn.db import ArchiveAcq as AlpenAcq
 from alpenhorn.db import ArchiveFile as AlpenFile
+from alpenhorn.db import ArchiveFileCopy
+from alpenhorn.daemon import UpdateableNode
 
 import chimedb.core as db
 
@@ -26,13 +28,6 @@ from chimedb.data_index.orm import (
     ArchiveFile,
     ArchiveInst,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    from alpenhorn.db import ArchiveFileCopy
-    from alpenhorn.daemon import UpdateableNode
-del TYPE_CHECKING
 
 log = logging.getLogger("alpenhorn_chime")
 
