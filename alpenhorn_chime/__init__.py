@@ -13,7 +13,8 @@ del version, PackageNotFoundError
 def register_extensions() -> dict:
     """Provide the extension to alpenhorn.
 
-    This module provides the CHIME import-detect routine.
+    This function is called by alpenhorn when loading this extension to
+    get the list of Extensions which we provide.
     """
     global __version__
     from alpenhorn.extensions import ImportDetectExtension
