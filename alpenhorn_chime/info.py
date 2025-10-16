@@ -1,5 +1,7 @@
 """CHIME info classes."""
 
+# All the info tables must be imported here so that the import
+# detect callback can find them.
 from chimedb.data_index.orm import (
     ArchiveFile,
     CalibrationFileInfo,
