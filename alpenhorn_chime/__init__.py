@@ -17,7 +17,13 @@ def register_extensions() -> dict:
     to get the list of Extensions which we provide.
     """
     global __version__
-    from alpenhorn.extensions import ImportDetectExtension
+    from alpenhorn.extensions import ImportDetectExtension, IOClassExtension
     from .detection import import_detect
+    from .hpss.node import SciNetHPSSNodeIO
 
-    return [ImportDetectExtension("Detect", __version__, detect=import_detect)]
+    return [
+        ImportDetectExtension("CHIMEDetect", __version__, detect=import_detect),
+        IOClassExtension(
+            "SciNetHPSSIO", __version__, "SciNetHPSS", node_class=SciNetHPSSNodeIO
+        ),
+    ]
