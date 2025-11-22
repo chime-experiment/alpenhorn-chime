@@ -165,22 +165,19 @@ class OpsQueue:
                 return
             if self._wait_size >= self.bundle_max:
                 # Reached file size max; queue job
-                why = f"Bundle max exceeded: {self._wait_size} >= {self.bundle_max}"
                 pass
             elif wait_count >= self.count_max:
                 # Reached file count max; queue job
-                why = f"Count max exceeded: {wait_count} >= {self.count_max}"
                 pass
             elif time.monotonic() - self._waiting[0][0] >= self.time_max:
                 # Reached file wait-time max; queue job
-                why = f"Time max exceeded: {time.monotonic() - self._waiting[0][0]} >= {self.time_max}"
                 pass
             else:
                 # Otherwise, no need to queue a job, just return
                 return
 
             # Create and queue a new slurm job.
-            self.queue_job(why)
+            self.queue_job()
 
     def slurm_command(self, command: list[str]) -> dict | None:
         """Run slurm command and return parsed JSON.
@@ -350,22 +347,13 @@ class OpsQueue:
         log.debug(f"Wrote job script {job_path}")
         return job_name
 
-    def queue_job(self, why: str) -> None:
-        """Create and queue a new slurm job.
-
-        Parameters
-        ----------
-        why : str
-            Why are we attempting a job submission?  (Written to debug log.)
-        """
+    def queue_job(self) -> None:
+        """Create and queue a new slurm job."""
 
         # If we already have the max number of jobs pending, do nothing.
         if self.slurm_pending_count() >= self.pending_job_max:
             log.debug(f"Skipping {self.dirname} for node {self.name}: queue full")
             return
-
-        # Write the queueing reason
-        log.debug(why)
 
         transfer_size = 0
         count = 0
