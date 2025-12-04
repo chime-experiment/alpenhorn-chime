@@ -43,21 +43,13 @@ class SciNetHPSSNodeRemote(BaseNodeRemote):
 
         self.staging_root = pathlib.Path(config["staging_root"])
 
-    def file_path(self, file: ArchiveFile) -> str:
-        """Path to a staged file.
-
-        Files in staging are simply named by their ArchiveFile.id
-        to avoid having"""
-        return self.staging_root.joinpath(str(file.id))
-
     def pull_ready(self, file: ArchiveFile) -> bool:
-        """Returns True if this file is in staging."""
-        try:
-            copy = ArchiveFileCopy.get(file=file, node=self.node)
-        except pw.DoesNotExist:
-            return False
+        """Returns False.
 
-        return copy.ready
+        Recall from SciNet is not yet implemented.  Returning
+        False here discourages attempts to pull files out of
+        SciNet."""
+        return False
 
     def remote_pull_ok(self, host: str) -> bool:
         """HPSS doesn't permit remote pulls."""
