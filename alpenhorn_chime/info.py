@@ -2,7 +2,7 @@
 
 # All the info tables must be imported here so that the import
 # detect callback can find them.
-from chimedb.data_index.orm import (
+from chimedb.data_index.orm import (  # noqa: F401
     ArchiveFile,
     CalibrationFileInfo,
     CalibrationGainFileInfo,
