@@ -221,13 +221,10 @@ class SciNetHPSSNodeIO(DefaultNodeIO):
 
             task.on_cleanup(_talkback_done, args=(io,))
 
-            # Call the ops's 'update' genrator function, which will yield file ids
+            # Call the ops's 'update' generator function, which will yield file ids
             # of new files added to the archive
-            for req_id, file_id, deltat, success in io._ops.update():
-                # req_id is non-zero for ingest requests
-                if req_id:
-                    # This is an ingest
-                    #
+            for req_id, file_id, deltat, opname, success in io._ops.update():
+                if opname == "ingest":
                     # Find the AFCR record
                     try:
                         req = ArchiveFileCopyRequest.get(id=req_id)
@@ -255,13 +252,31 @@ class SciNetHPSSNodeIO(DefaultNodeIO):
                         # Generic message for failure
                         stderr="HPSS ingest failed",
                     )
-                else:
-                    # This is a recall
-                    #
+                elif opname == "check":
+                    # Update the file copy per the check result.  If no such
+                    # record exists, this will silently do nothing.
+                    if success:
+                        log.info(f'File #{file_id} on node "{io.node.name}" is A-OK!')
+                        has_file = "Y"
+                    else:
+                        log.warning(
+                            f'File #{file_id} on node "{io.node.name}" is corrupt!'
+                        )
+                        has_file = "X"
+                    ArchiveFileCopy.update(
+                        has_file=has_file, last_update=pw.utcnow()
+                    ).where(
+                        ArchiveFileCopy.file_id == file_id,
+                        ArchiveFileCopy.node == io.node,
+                    ).execute()
+                elif opname == "recall":
                     # Mark the file copy as staged (ready)
                     updated = (
                         ArchiveFileCopy.update(ready=True, last_update=pw.utcnow())
-                        .where(file_id=file_id, node=io.node)
+                        .where(
+                            ArchiveFileCopy.file_id == file_id,
+                            ArchiveFileCopy.node == io.node,
+                        )
                         .execute()
                     )
 
@@ -279,6 +294,8 @@ class SciNetHPSSNodeIO(DefaultNodeIO):
                             f"Deleting unregistered file #{file_id} from staging"
                         )
                         self._staging_path(file).unlink(missing_ok=True)
+                else:
+                    log.error(f'Talkback for unknown op "{opname}" ignored.')
 
             # If this was the talkback init, record success
             if io.need_talkback_init:
@@ -443,8 +460,8 @@ class SciNetHPSSNodeIO(DefaultNodeIO):
         copy : ArchiveFileCopy
             the file copy to check
         """
-        # HSI can give us the MD5 sum of a file on tape.  We should use that...
-        raise NotImplementedError("check not supported")
+        # Add a new check request (which takes the file, not the file copy)
+        self._ops.check(copy.file)
 
     def check_init(self) -> bool:
         """Check that this node is initialised.

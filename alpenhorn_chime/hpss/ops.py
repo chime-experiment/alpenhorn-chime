@@ -32,9 +32,9 @@ class OpsQueue:
 
     Parameters
     ----------
-    ingest : bool
-        True for the ingest (into HPSS) queue.  False for the recall
-        (out from HPSS) queue.
+    op : str
+        One of "ingest" or "recall" or "check" indicating the
+        operation being managed.
     name : str
         The name of the StorageNode
     node_id : int
@@ -53,7 +53,7 @@ class OpsQueue:
 
     def __init__(
         self,
-        ingest: bool,
+        op: str,
         name: str,
         node_id: int,
         count_max: int,
@@ -64,8 +64,11 @@ class OpsQueue:
     ) -> None:
         # === CONFIG ATTRIBUTES
 
-        self.ingest = ingest  # Queue direction
-        self.dirname = "ingest" if ingest else "recall"  # For logging
+        # Check for valid op
+        if op in ("ingest", "check", "recall"):
+            self.op = op
+        else:
+            raise ValueError(f"unknown op: {op}")
         self.name = name
         self.node_id = node_id
         self.count_max = count_max
@@ -106,9 +109,9 @@ class OpsQueue:
         present.  Then perhaps queues a new job, if we've reached the limits
         for that.
 
-        Normally, the `req` is used to push to the ingest queue and `file` to the
-        recall queue.  That's not enforced, but odd things might happen if it's not
-        the case.
+        Normally, the `req` is used to push to the ingest queue and `file` to
+        the recall and check queues.  That's not enforced, but odd things might
+        happen if it's not the case.
 
         If neither `file` nor `req` are given, then nothing is added but the
         queue check still happens.
@@ -131,7 +134,7 @@ class OpsQueue:
                 # First check whether the request is already in a running job
                 if file.id in self._running:
                     log.debug(
-                        f"Skipping {self.dirname} of {file.path}: already in progress on node {self.name}"
+                        f"Skipping {self.op} of {file.path}: already in progress on node {self.name}"
                     )
                     do_add = False
                 else:
@@ -142,7 +145,7 @@ class OpsQueue:
                     for waiting in self._waiting:
                         if waiting[1] == file:
                             log.debug(
-                                f"Skiping {self.dirname} of {file.path}: already waiting on node {self.name}"
+                                f"Skiping {self.op} of {file.path}: already waiting on node {self.name}"
                             )
                             do_add = False
                             break
@@ -150,7 +153,7 @@ class OpsQueue:
                 # Add the new request, if needed
                 if do_add:
                     log.info(
-                        f"Added {req.file.path} to {self.dirname} FIFO for node {self.name}"
+                        f"Added {file.path} to {self.op} FIFO for node {self.name}"
                     )
                     # req might be None here: that's fine
                     self._waiting.append((time.monotonic(), file, req))
@@ -270,8 +273,8 @@ class OpsQueue:
             log.info(f'Job "{job}" for node "{self.name}" complete.')
             del self._jobs[job]
 
-    def _write_ingest_loop(self, transfers: list, f: IO) -> None:
-        """Write the unrolled ingest loop to a script.
+    def _write_script_loop(self, transfers: list, f: IO) -> None:
+        """Write the unrolled operational loop to a script.
 
         Parameters
         ----------
@@ -284,22 +287,39 @@ class OpsQueue:
         f : IO
             The file to write to.
         """
+        # Get format string for operation, if any
+        if self.op == "ingest":
+            loop = _INGEST_LOOP
+        elif self.op == "check":
+            loop = _CHECK_LOOP
+        else:
+            raise NotImplementedError(f"Unsupported op: {self.op}")
+
         for item in transfers:
             _, file, req = item
-            if req is None:
-                log.warning(f"Ignoring ingest request for {file.name}: no req.")
-                continue
 
-            remote = RemoteNode(req.node_from)
+            # Specal stuff for ingest
+            if self.op == "ingest":
+                if req is None:
+                    log.warning(f"Ignoring ingest request for {file.name}: no req.")
+                    continue
+
+                req_id = req.id
+
+                remote = RemoteNode(req.node_from)
+                ext_path = remote.io.file_path(req.file)
+            else:
+                ext_path = ""
+                req_id = 0
 
             f.write(
-                _INGEST_LOOP.format(
-                    src_path=remote.io.file_path(req.file),
+                loop.format(
+                    ext_path=ext_path,
                     acq_dir=file.acq.name,
                     file_id=file.id,
                     file_name=file.name,
                     md5sum=file.md5sum,
-                    req_id=req.id,
+                    req_id=req_id,
                 )
             )
 
@@ -335,10 +355,7 @@ class OpsQueue:
                         node_id=self.node_id,
                     )
                 )
-                if self.ingest:
-                    self._write_ingest_loop(transfers, f)
-                else:
-                    raise NotImplementedError("recall not implemented")
+                self._write_script_loop(transfers, f)
         except (OSError, NotImplementedError) as e:
             log.error(f"Unable to create script {job_path}: {e}")
             job_path.unlink(missing_ok=True)
@@ -352,7 +369,7 @@ class OpsQueue:
 
         # If we already have the max number of jobs pending, do nothing.
         if self.slurm_pending_count() >= self.pending_job_max:
-            log.debug(f"Skipping {self.dirname} for node {self.name}: queue full")
+            log.debug(f"Skipping {self.op} for node {self.name}: queue full")
             return
 
         transfer_size = 0
@@ -375,7 +392,7 @@ class OpsQueue:
                 break
 
         log.debug(
-            f"Bundled {count} files ({pretty_bytes(transfer_size)}) for {self.dirname}"
+            f"Bundled {count} files ({pretty_bytes(transfer_size)}) for {self.op}"
         )
 
         # Compose the job script
@@ -470,7 +487,8 @@ class HPSSOps:
 
         # Recall and ingest max file count for a job.  There is a large
         # asymmetry here in the defaults: putting files into HPSS is _much_
-        # more efficient than pulling them out
+        # more efficient than pulling them out.  (ingest_max is also used
+        # for the check queue).
         recall_max = self._positive_default("recall_max", 40)
         ingest_max = self._positive_default("ingest_max", 500)
 
@@ -490,12 +508,13 @@ class HPSSOps:
             "staging_root": self.staging_root,
         }
 
-        # The two queues for ingest and recall
+        # The queues for ingest, check, and recall
         self.ingestq = OpsQueue(
-            ingest=True, count_max=ingest_max, **common_queue_config
+            op="ingest", count_max=ingest_max, **common_queue_config
         )
+        self.checkq = OpsQueue(op="check", count_max=ingest_max, **common_queue_config)
         self.recallq = OpsQueue(
-            ingest=False, count_max=recall_max, **common_queue_config
+            op="recall", count_max=recall_max, **common_queue_config
         )
 
     def check_jobs(self):
@@ -504,6 +523,7 @@ class HPSSOps:
         This function just dispatches to the OpsQueues.
         """
         self.ingestq.check_jobs()
+        self.checkq.check_jobs()
         self.recallq.check_jobs()
 
     def update(self):
@@ -521,6 +541,8 @@ class HPSSOps:
             ArchiveFile.id
         int
             Seconds taken to perform the operation
+        str
+            Name of the operation ("ingest", "check", "recall")
         bool
             True if the operation succeded.  False otherwise.
         """
@@ -534,9 +556,9 @@ class HPSSOps:
 
                 # Parse the talkback filename.  All talkback files have
                 # eight dash-separated fields:
-                #   <start>-<job#>-<node>-<deltat>-<file>-<req>-<direct>-<result>
+                #   <start>-<job#>-<node>-<deltat>-<file>-<req>-<opname>-<result>
                 #
-                # - direct is "ingest" or "recall"
+                # - opname is "ingest", "check" or "recall"
                 # - result is "success" or "fail"
                 # - req_id is 0 for recall requests (!=0 for ingest)
                 bad_talkback = False
@@ -547,7 +569,7 @@ class HPSSOps:
                     deltat = int(data[3])
                     file_id = int(data[4])
                     req_id = int(data[5])
-                    direct = data[6]
+                    opname = data[6]
                     result = data[7]
                 except (TypeError, ValueError, IndexError) as e:
                     log.debug(f"Talback parse error: {e}")
@@ -561,16 +583,19 @@ class HPSSOps:
                     # after parsing it.
                     continue
                 else:
-                    if result != "success":
-                        # On failure, log it
-                        log.warning(f"Failed {direct} for file #{file_id}")
+                    if opname == "check":
+                        # For check, just return everything back to the caller
+                        yield req_id, file_id, deltat, opname, not (result != "success")
+                    elif result != "success":
+                        # For ingest and recall, on failure, log it
+                        log.warning(f"Failed {opname} for file #{file_id}")
                         # Return this file_id to the caller
-                        yield req_id, file_id, deltat, False
-                    elif direct == "ingest":
+                        yield req_id, file_id, deltat, opname, False
+                    elif opname == "ingest":
                         count_in += 1
                         # Return this file_id to the caller
-                        yield req_id, file_id, deltat, True
-                    elif direct == "recall":
+                        yield req_id, file_id, deltat, opname, True
+                    elif opname == "recall":
                         count_out += 1
 
                         # Who knows how old this talkback is?  Check the
@@ -579,7 +604,7 @@ class HPSSOps:
 
                         if staged_path.exists():
                             # Return this file_id to the caller
-                            yield 0, file_id, deltat, True
+                            yield 0, file_id, deltat, opname, True
                         else:
                             # If the staged file doesn't exist, we essentially act as if
                             # this talkback didn't exist either, and do nothing (other than
@@ -588,7 +613,7 @@ class HPSSOps:
                                 f"File #{file_id} missing from staging during talkback"
                             )
                     else:
-                        log.warning(f"Ignoring talkback with unknown op ({direct})")
+                        log.warning(f"Ignoring talkback with unknown op ({opname})")
 
                 # Whether good or bad, we remove the talkback file
                 (root / file).unlink(missing_ok=True)
@@ -616,13 +641,31 @@ class HPSSOps:
         # Hand this off to the ops queue
         self.ingestq.push(req=req)
 
+    def check(self, file: ArchiveFile | None) -> None:
+        """Add a new check request.
+
+        If file is not None, it is added to the recall waiting FIFO, if not
+        already present.
+
+        Then, whether a new request was added or not, create a check job,
+        if there's a reason to.
+
+        Parameters
+        ----------
+        file : ArchiveFile or None
+            If not None, the file to add to the check list.  If None,
+            nothing is added, and only the job-creation checks are performed.
+        """
+        # Hand this off to the ops queue
+        self.checkq.push(file=file)
+
     def recall(self, file: ArchiveFile | None) -> None:
         """Add a new recall request.
 
-        If req is not None, it is added to the recall waiting FIFO, if not
+        If file is not None, it is added to the recall waiting FIFO, if not
         already present.
 
-        Then, whether a new request was added or not, create an recall job,
+        Then, whether a new request was added or not, create a recall job,
         if there's a reason to.
 
         Parameters
@@ -640,7 +683,7 @@ class HPSSOps:
 # The rest of this file are the job script fragments
 #
 
-# This is the header for both pull and push scripts
+# This is the header for all scripts
 #
 # Vars:
 # - job_name     : the name of this job
@@ -666,10 +709,48 @@ NODE_ID={node_id}
 
 """
 
+# The looping section for file checking
+#
+# Vars:
+#   acq_dir   : ArchiveFile.acq.name
+#   file_id   : ArchiveFile.id
+#   file_name : ArchiveFile.name
+#   md5sum    : ArchiveFile.md5sum
+_CHECK_LOOP = """
+
+#
+#
+# Check of {acq_dir}/{file_name}:
+
+ITEM_START=$(date +%s)
+echo
+echo "Start of check of {acq_dir}/{file_name} with hash {md5sum}"
+
+# Check for an existing file by trying to hash it.  hsi prints the
+# hash as the first word to stderr.
+HPSS_HASH=$(hsi -q lshash $HPSS_DIR/{acq_dir}/{file_name} 2>&1 | awk '{{print $1}}')
+
+# If this worked, and the hash is fine, the check succeeded
+if [ "x$HPSS_HASH" == 'x{md5sum}' ]; then
+    echo "  Hash of stored file correct"
+    RESULT="success"
+else
+    # Otherwise, the check failed
+    echo "  Hash of existing copy (if any) incorrect"
+    RESULT="fail"
+fi
+
+# Create the talkback
+DELTAT=$(expr $(date +%s) - $ITEM_START)
+TALKBACK=$START_TIME-$JOBNUM-$NODE_ID-$DELTAT-{file_id}-{req_id}-check-$RESULT
+touch $TALKBACK_DIR/$TALKBACK
+echo "  Wrote talkback: $TALKBACK"
+"""
+
 # The looping section for ingest (into HPSS)
 #
 # Vars:
-#   src_path  : Full path to source file
+#   ext_path  : Full path to source file
 #   req_id    : ArchiveFileCopyRequest.id
 #   acq_dir   : ArchiveFile.acq.name
 #   file_id   : ArchiveFile.id
@@ -681,7 +762,7 @@ _INGEST_LOOP = """
 #
 # Ingest of {acq_dir}/{file_name}:
 
-INGEST_START=$(date +%s)
+ITEM_START=$(date +%s)
 echo
 echo "Start of ingest of {acq_dir}/{file_name} with hash {md5sum}"
 
@@ -700,7 +781,7 @@ else
     hsi -q mkdir $HPSS_DIR/{acq_dir}
 
     # Copy the file into HPSS
-    hsi -q put -c on -H md5 {src_path} : $HPSS_DIR/{acq_dir}/{file_name}
+    hsi -q put -c on -H md5 {ext_path} : $HPSS_DIR/{acq_dir}/{file_name}
 
     # Check the hash of the new file
     HPSS_HASH=$(hsi -q lshash $HPSS_DIR/{acq_dir}/{file_name} 2>&1  | awk '{{print $1}}')
@@ -715,7 +796,7 @@ else
 fi
 
 # Create the talkback
-DELTAT=$(expr $(date +%s) - $INGEST_START)
+DELTAT=$(expr $(date +%s) - $ITEM_START)
 TALKBACK=$START_TIME-$JOBNUM-$NODE_ID-$DELTAT-{file_id}-{req_id}-ingest-$RESULT
 touch $TALKBACK_DIR/$TALKBACK
 echo "  Wrote talkback: $TALKBACK"
