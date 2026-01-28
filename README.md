@@ -1,4 +1,5 @@
 # alpenhorn-chime
 CHIME extensions for [alpenhorn-2](https://github.com/radiocosmology/alpenhorn).
 
-_Note: for CHIME-specific alpenhorn-1 stuff (the legacy version), see [ch_alpenhorn](ch_alpenhorn)._
+_Note: there are some bits and bobs related to CHIME's use of alpenhorn (i.e., outside
+of actual alpenhorn extensions) over here: [ch_alpenhorn](https://github.com/chime-experiment/ch_alpenhorn)._
