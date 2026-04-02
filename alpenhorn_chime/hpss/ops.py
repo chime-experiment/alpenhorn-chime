@@ -15,9 +15,10 @@ from typing import IO
 from collections import deque
 
 from alpenhorn.common import config
-from alpenhorn.common.util import pretty_bytes, run_command
+from alpenhorn.common.util import pretty_bytes
 from alpenhorn.db import ArchiveFile, ArchiveFileCopyRequest, StorageNode
 from alpenhorn.daemon import RemoteNode
+from alpenhorn.daemon.proc import run_command
 
 log = logging.getLogger(__name__)
 
