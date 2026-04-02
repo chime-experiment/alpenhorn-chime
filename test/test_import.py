@@ -13,6 +13,7 @@ from chimedb.data_index import util
 from alpenhorn.db import (
     DataIndexVersion,
     StorageGroup,
+    StorageHost,
     StorageNode,
     current_version,
 )
@@ -69,12 +70,13 @@ def test_data(proxy, tables, testdata):
     """Set db data for the test."""
 
     # Storage group and node
+    host = StorageHost.create(name="alpenhost")
     group = StorageGroup.create(name="group")
     StorageNode.create(
         name="node",
         group=group,
         root=testdata,
-        host="alpenhost",
+        host=host,
         active=True,
         auto_import=True,
         storage_type="A",
