@@ -1,7 +1,7 @@
 #Alpenhorn config file
 
-base:
-  hostname: alpenhost
+daemon:
+  host: alpenhost
 
 extensions:
   - chimedb.core.alpenhorn
